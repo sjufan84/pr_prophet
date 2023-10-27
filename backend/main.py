@@ -6,13 +6,12 @@ from services.chat_service import ChatService
 app = FastAPI()
 
 origins = [
-    "http://localhost:5173",  # Vue development server
-    # add other origins if needed
+    "http://localhost:5173",  # Make sure this matches your frontend port
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -24,9 +23,9 @@ def read_root():
     return {"message": "Hello, World!"}
 
 @app.post("/get_response")
-def send_message(message: str, chat_history: list = None, ai_models: list = None):
+def send_message(chat_history: list = None, ai_models: list = None):
     """ Get chat response """
     # Initialize chat service
     chat_service = ChatService(chat_history, ai_models)
     # Get the chat response
-    return chat_service.get_chat_response(message)
+    return chat_service.get_chat_response()

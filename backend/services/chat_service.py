@@ -2,9 +2,9 @@
 import os
 from enum import Enum
 from pydantic import BaseModel, Field
+from fastapi import HTTPException
 from dotenv import load_dotenv
 import openai
-from openai.error import OpenAIError
 
 # Load environment variables
 load_dotenv()
@@ -57,6 +57,6 @@ class ChatService:
                 # Add the AI response to the chat history
                 # Return the chat response
                 return {"message": ai_message}
-            except OpenAIError as e:
+            except HTTPException as e:
                 print(f"OpenAI API error: {e}")
                 continue
