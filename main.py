@@ -2,10 +2,12 @@
 by: @ChickenMon84 """
 
 import os
+import asyncio
 from dotenv import load_dotenv
 import streamlit as st
 import openai
 from PIL import Image
+from utils.tts import text_to_audio
 
 # Load environment variables
 load_dotenv()
@@ -31,40 +33,64 @@ if "messages" not in st.session_state:
 
 prophet = Image.open("./resources/Prophet.jpeg")
 
-st.markdown("""
-            <h3 style='text-align: center; color: #f6bd60;'>PR Prophet.  Ask and ye shall receive. 🔮</h3>
-            """, unsafe_allow_html=True)
-st.text("")
-# Display chat messages from history on app rerun
-for message in st.session_state.messages:
-    if message["role"] == "assistant":
-        with st.chat_message(message["role"], avatar=prophet):
-            st.markdown(message["content"])
-    elif message["role"] == "user":
-        with st.chat_message(message["role"]):
-            st.markdown(message["content"])
+async def stream_pr():
+    """ Main function for PR Prophet """
+    st.markdown("""
+                <h3 style='text-align: center; color: #f6bd60;'>PR Prophet.
+                Ask and ye shall receive. 🔮</h3>
+                """, unsafe_allow_html=True)
+    st.text("")
+    # Display chat messages from history on app rerun
+    for message in st.session_state.messages:
+        if message["role"] == "assistant":
+            with st.chat_message(message["role"], avatar=prophet):
+                st.markdown(message["content"])
+        elif message["role"] == "user":
+            with st.chat_message(message["role"]):
+                st.markdown(message["content"])
 
-# Accept user input
-if prompt := st.chat_input("What questions doest thou have?"):
-    # Add user message to chat history
-    st.session_state.messages.append({"role": "user", "content": prompt})
-    # Display user message in chat message container
-    with st.chat_message("user"):
-        st.markdown(prompt)
-    # Load the prophet image for the avatar
-    # Display assistant response in chat message container
-    with st.chat_message("assistant", avatar=prophet):
-        message_placeholder = st.empty()
-        full_response = ""
+    # Accept user input
+    if prompt := st.chat_input("What questions doest thou have?"):
+        # Add user message to chat history
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        # Display user message in chat message container
+        with st.chat_message("user"):
+            st.markdown(prompt)
+        # Load the prophet image for the avatar
+        # Display assistant response in chat message container
+        with st.chat_message("assistant", avatar=prophet):
+            message_placeholder = st.empty()
+            FULL_RESPONSE = ""
+        bytes_list = []
+        text_buffer = ""
+        buffer_length = 0
 
-    for response in openai.ChatCompletion.create(
-        model=st.session_state["openai_model"],
-        messages= [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
-        stream=True,
-        temperature=1,
-        max_tokens=200,
-        ):
-        full_response += response.choices[0].delta.get("content", "")
-        message_placeholder.markdown(full_response + "▌")
-    message_placeholder.markdown(full_response)
-    st.session_state.messages.append({"role": "assistant", "content": full_response})
+        for response in openai.ChatCompletion.create(
+            model=st.session_state["openai_model"],
+            messages= [{"role": m["role"], "content": m["content"]} for m in st.session_state.messages],
+            stream=True,
+            temperature=1,
+            max_tokens=100
+            ):
+            FULL_RESPONSE += response.choices[0].delta.get("content", "")
+            # Convert text to audio
+            text_buffer += FULL_RESPONSE
+            buffer_length += len(FULL_RESPONSE)
+            MAX_BUFFER_LENGTH = 1000  # Adjust as needed
+
+            if buffer_length >= MAX_BUFFER_LENGTH:
+                audio_bytes = text_to_audio(text_buffer)
+                # Clear the buffer
+                text_buffer = ""
+                buffer_length = 0
+
+
+            audio_bytes = await text_to_audio(response.choices[0].delta.get("content", ""))
+            bytes_list.append(audio_bytes)
+            message_placeholder.markdown(FULL_RESPONSE + "▌")
+        #st.audio(audio_base64, format="audio/mp3", start_time=0)
+        st.write(bytes_list)
+        message_placeholder.markdown(FULL_RESPONSE)
+        st.session_state.messages.append({"role": "assistant", "content": FULL_RESPONSE})
+if __name__ == "__main__":
+    asyncio.run(stream_pr())
