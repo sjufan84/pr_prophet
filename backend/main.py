@@ -1,7 +1,8 @@
 """ FastAPI backend """
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from services.chat_service import ChatService
+from services.chat_service import get_chat_response
+from pydantic import BaseModel
 
 app = FastAPI()
 
@@ -22,10 +23,12 @@ def read_root():
     """ Root endpoint """
     return {"message": "Hello, World!"}
 
-@app.post("/get_response")
-def send_message(chat_history: list = None, ai_models: list = None):
+class ChatHistory(BaseModel):
+    chat_history: list
+
+@app.post('/get_response')
+async def get_response(chat: ChatHistory = None):
     """ Get chat response """
-    # Initialize chat service
-    chat_service = ChatService(chat_history, ai_models)
-    # Get the chat response
-    return chat_service.get_chat_response()
+    chat_history = chat.chat_history if chat else []
+    response = get_chat_response(chat_history)
+    return response

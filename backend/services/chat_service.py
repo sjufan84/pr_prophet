@@ -23,40 +23,27 @@ INITIAL_PROMPT = [{"role": "system", "content" : """
 
 openai_models = ["gpt-4-0613", "gpt-4-0613", "gpt-3.5-turbo-16k-0613", "gpt-3.5-turbo-0613"]
 
-class ChatRole(str, Enum):
-    """ Chat role """
-    AI = "assistant"
-    USER = "user"
-
-class ChatMessage(BaseModel):
-    """ Chat message """
-    message: str = Field(description = "Message content")
-    role: ChatRole = Field(description = "Message role")
-
-class ChatService:
-    """ Chat services utilities """
-    def __init__(self, chat_history: list = None, ai_models: list = None):
-        """ Initialize chat history """
-        self.chat_history = chat_history if chat_history else INITIAL_PROMPT
-        self.openai_models = openai_models if openai_models else ai_models
-
-    def get_chat_response(self) -> dict:
-        """ Get chat response """
-        # Append the user message to the chat history
-        # Iterate through the models
-        for model in self.openai_models:
-            try:
-                response = openai.ChatCompletion.create(
-                    model=model,
-                    messages= [{"role": m["role"], "content": m["content"]}
-                                for m in self.chat_history],
-                    temperature=1,
-                    max_tokens=250,
-                )
-                ai_message = response.choices[0].message.content
-                # Add the AI response to the chat history
-                # Return the chat response
-                return {"message": ai_message}
-            except HTTPException as e:
-                print(f"OpenAI API error: {e}")
-                continue
+def get_chat_response(chat_history):
+    """ Get chat response """
+    if chat_history:
+        chat_history = INITIAL_PROMPT + chat_history
+    else:
+        chat_history = INITIAL_PROMPT
+    # Append the user message to the chat history
+    # Iterate through the models
+    for model in openai_models:
+        try:
+            response = openai.ChatCompletion.create(
+                model=model,
+                messages= chat_history,
+                temperature=1,
+                max_tokens=250,
+            )
+            answer = response.choices[0].message.content
+            # Return the answer
+            return answer
+            
+            
+        except HTTPException as e:
+            print(f"OpenAI API error: {e}")
+            continue
